@@ -17,6 +17,87 @@ class BugzillaObject(dict):
     # to base64 should happen here
     def to_json(self, id_only = False):
         raise RuntimeError("Subclasses have to implement this method")
+    
+    def set_default_attributes(self, attributes):
+        for key, value in attributes.items():
+            if isinstance(value, list):
+                value = list(value)
+            
+            self.setdefault(key, value)
+
+# Note that this class has a lot of _detail-fields. To avoid unnecessary lines of code,
+# the none-_detail-fields will just refer to the _detail-fields. E.g. creator wil look up
+# creator_detail. That way, setting creator_detail is enough to set both fields.
+class Bug(BugzillaObject):
+    ATTRIBUTES = {
+        "alias": [],
+        "assigned_to_detail": None,
+        "blocks": [],
+        "cc_detail": [],
+        "classification": "",
+        "component": "",
+        "creation_time": None,
+        "creator_detail": None,
+        "deadline": None,
+        "depends_on": [],
+        "dupe_of": None,
+        "flags": [],
+        "groups": [],
+        "id": -1,
+        "is_cc_accessible": False,
+        "is_confirmed": False,
+        "is_open": False,
+        "is_creator_accessible": False,
+        "keywords": [],
+        "last_change_time": None,
+        "op_sys": "",
+        "platform": "",
+        "priority": "",
+        "product": "",
+        "qa_contact_detail": None,
+        "resolution": "",
+        "see_also": [],
+        "severity": "",
+        "status": "",
+        "summary": "",
+        "target_milestone": "",
+        "url": "",
+        "version": "",
+        "whiteboard": ""
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Bug.ATTRIBUTES)
+    
+    def __getattr__(self, attr):
+        if attr == "assigned_to": return None if self.assigned_to_detail is None else self.assigned_to_detail["name"]
+        elif attr == "cc": return [None if cc_detail is None else cc_detail["name"] for cc_detail in self.cc_detail]
+        elif attr == "creator": return None if self.creator_detail is None else self.creator_detail["name"]
+        
+        return BugzillaObject.__getattr__(self, attr)
+    
+    def __setattribute__(self, attr, value):
+        if attr in ("assigned_to", "cc", "creator"):
+            raise AttributeError("The virtual attribute '%s' cannot be overwritten")
+        
+        BugzillaObject.__setattribute__(self, attr, value)
+    
+    def to_json(self, id_only = False):
+        if id_only:
+            return self.id
+        
+        obj = dict(self)
+        obj["assigned_to"] = self.assigned_to
+        obj["blocks"] = [block.to_json(True) for block in self.blocks]
+        obj["cc"] = self.cc
+        obj["creation_time"] = encode_bugzilla_datetime(self.creation_time)
+        obj["creator"] = self.creator
+        obj["flags"] = [flag.to_json() for flag in self.flags]
+        obj["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
+        obj["qa_contact"] = self.qa_contact
+        
+        return obj
 
 class Attachment(BugzillaObject):
     ATTRIBUTES = {
@@ -37,8 +118,7 @@ class Attachment(BugzillaObject):
     
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
-        for key, value in Attachment.ATTRIBUTES.items():
-            self.setdefault(key, value)
+        self.set_default_attributes(Attachment.ATTRIBUTES)
     
     def __getattr__(self, attr):
         # to avoid the trouble of setting the size along with the data, size is
@@ -48,7 +128,13 @@ class Attachment(BugzillaObject):
         else:
             return BugzillaObject.__getattr__(self, attr)
     
-    def to_json(self):
+    def __setattribute__(self, attr, value):
+        if attr == "size":
+            raise AttributeError("The virtual attribute 'size' cannot be overwritten")
+        
+        BugzillaObject.__setattribute__(self, attr, value)
+    
+    def to_json(self, id_only = False):
         obj = dict(self)
         obj["size"] = self.size
         obj["data"] = base64.b64encode(self.data).decode("ascii")
@@ -72,10 +158,9 @@ class Flag(BugzillaObject):
     
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
-        for key, value in Flag.ATTRIBUTES.items():
-            self.setdefault(key, value)
+        self.set_default_attributes(Flag.ATTRIBUTES)
     
-    def to_json(self):
+    def to_json(self, id_only = False):
         obj = dict(self)
         obj["creation_date"] = encode_bugzilla_datetime(self.creation_date)
         obj["modification_date"] = encode_bugzilla_datetime(self.modification_date)

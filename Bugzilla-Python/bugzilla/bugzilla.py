@@ -84,6 +84,17 @@ class Bugzilla:
         
         return Flag(data)
     
+    def _get_bug(self, data):
+        if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
+        if "flags" in data: data["flags"] = [self._get_flag(obj) for obj in data["flags"]]
+        if "is_cc_accessible" in data: data["is_cc_accessible"] = bool(data["is_cc_accessible"])
+        if "is_confirmed" in data: data["is_confirmed"] = bool(data["is_confirmed"])
+        if "is_open" in data: data["is_open"] = bool(data["is_open"])
+        if "is_creator_accessible" in data: data["is_creator_accessible"] = bool(data["is_creator_accessible"])
+        if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
+        
+        return Bug(data)
+    
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
         return self._get("version")["version"]
@@ -113,10 +124,19 @@ class Bugzilla:
         attachment_id = str(attachment_id)
         return self._get_attachment(self._get("bug/attachment/" + attachment_id, **kw)["attachments"][attachment_id])
     
-    def get_attachments_by_bug(self, bug_id, **kw):
+    def get_attachments_by_bug(self, bug, **kw):
         'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
-        bug_id = str(bug_id)
+        bug_id = str(bug.id if isinstance(bug, Bug) else bug)
         return [self._get_attachment(data) for data in self._get("bug/%s/attachment" % bug_id, **kw)["bugs"][bug_id]]
+    
+    def get_bug(self, bug_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        bug_id = str(bug_id)
+        return self._get_bug(self._get("bug/" + bug_id, **kw)["bugs"][0])
+    
+    def search_bugs(self, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        return [self._get_bug(data) for data in self._get("bug", **kw)["bugs"]]
     
     def get_last_visited(self, bug_ids = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
