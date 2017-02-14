@@ -1,5 +1,6 @@
 import base64
 from .util import encode_bugzilla_datetime
+from copy import deepcopy
 
 class BugzillaObject(dict):
     # Treat the object-attributes as dict-indizes for easier jsoning
@@ -19,10 +20,7 @@ class BugzillaObject(dict):
         raise RuntimeError("Subclasses have to implement this method")
     
     def set_default_attributes(self, attributes):
-        for key, value in attributes.items():
-            if isinstance(value, list):
-                value = list(value)
-            
+        for key, value in deepcopy(attributes).items():
             self.setdefault(key, value)
 
 # Note that this class has a lot of _detail-fields. To avoid unnecessary lines of code,
@@ -98,6 +96,109 @@ class Bug(BugzillaObject):
         obj["qa_contact"] = self.qa_contact
         
         return obj
+
+class Product(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "description": "",
+        "is_active": False,
+        "default_milestone": "",
+        "has_unconfirmed": False,
+        "classification": "",
+        "components": [],
+        "versions": [],
+        "milestones": []
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Product.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        obj = dict(self)
+        obj["components"] = [component.to_json() for component in self.components]
+        obj["versions"] = [version.to_json() for version in self.versions]
+        obj["milestones"] = [milestone.to_json() for milestone in self.milestones]
+        
+        return obj
+
+class Component(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "description": "",
+        "default_assigned_to": "",
+        "default_qa_contact": "",
+        "sort_key": 0,
+        "is_active": False,
+        "flag_types": {
+            "bug": [],
+            "attachment": []
+        }
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Component.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        obj = dict(self)
+        obj["flag_types"] = dict(self.flag_types)
+        obj["flag_types"]["bug"] = [ft.to_json() for ft in self.flag_types["bug"]]
+        obj["flag_types"]["attachment"] = [ft.to_json() for ft in self.flag_types["attachment"]]
+        
+        return obj
+
+class FlagType(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "description": "",
+        "cc_list": [],
+        "sort_key": 0,
+        "is_active": False,
+        "is_requestable": False,
+        "is_requesteeble": False,
+        "is_multiplicable": False,
+        "grant_group": None,
+        "request_group": None
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(FlagType.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self) # TODO: think about how to handle the group-fields an the list (reference-problem)
+
+class Version(BugzillaObject):
+    ATTRIBUTES = {
+        "name": "",
+        "sort_key": "",
+        "is_active": False
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Version.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self)
+
+class Milestone(BugzillaObject):
+    ATTRIBUTES = {
+        "name": "",
+        "sort_key": "",
+        "is_active": False
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Milestone.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self)
 
 class Attachment(BugzillaObject):
     ATTRIBUTES = {

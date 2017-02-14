@@ -95,6 +95,29 @@ class Bugzilla:
         
         return Bug(data)
     
+    def _get_product(self, data):
+        if "components" in data: data["components"] = [self._get_component(obj) for obj in data["components"]]
+        if "versions" in data: data["versions"] = [self._get_version(obj) for obj in data["versions"]]
+        if "milestones" in data: data["milestones"] = [self._get_milestone(obj) for obj in data["milestones"]]
+        
+        return Product(data)
+    
+    def _get_component(self, data):
+        if "flag_types" in data:
+            data["flag_types"]["bug"] = [self._get_flag_type(obj) for obj in data["flag_types"]["bug"]]
+            data["flag_types"]["attachment"] = [self._get_flag_type(obj) for obj in data["flag_types"]["attachment"]]
+        
+        return Component(data)
+    
+    def _get_flag_type(self, data):
+        return FlagType(data)
+    
+    def _get_version(self, data):
+        return Version(data)
+    
+    def _get_milestone(self, data):
+        return Milestone(data)
+    
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
         return self._get("version")["version"]
@@ -137,6 +160,23 @@ class Bugzilla:
     def search_bugs(self, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
         return [self._get_bug(data) for data in self._get("bug", **kw)["bugs"]]
+    
+    def get_selectable_product_ids(self):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        return sorted(map(int, self._get("product_selectable")["ids"]))
+    
+    def get_accessible_product_ids(self):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        return sorted(map(int, self._get("product_accessible")["ids"]))
+    
+    def get_enterable_product_ids(self):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        return sorted(map(int, self._get("product_enterable")["ids"]))
+    
+    def get_product(self, product_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        product_id = str(product_id)
+        return self._get_product(self._get("product/" + product_id, **kw)["products"][0])
     
     def get_last_visited(self, bug_ids = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
