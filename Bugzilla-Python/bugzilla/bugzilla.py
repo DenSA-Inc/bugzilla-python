@@ -1,7 +1,7 @@
 import json
 from base64 import b64decode
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from urllib.error import HTTPError
 from .objects import *
 from .util import parse_bugzilla_datetime
@@ -25,7 +25,7 @@ class Bugzilla:
             url += "rest/"
         
         self.url = url
-        self.api_key = None
+        self.api_key = api_key
         self.charset = "utf-8" # i have to lookup the right charset, until then utf-8 should suffice
     
     def _get(self, path, **kw):
@@ -43,13 +43,17 @@ class Bugzilla:
         if not isinstance(kw.get("exclude_fields", ""), str):
             kw["exclude_fields"] = ",".join(kw["exclude_fields"])
         
-        if post_data is not None: post_data = json.dumps(post_data)
+        if post_data is not None: post_data = json.dumps(post_data).encode("utf-8")
         
         query = urlencode(kw, True)
         if query: query = "?" + query
         url = self.url + path + query
         try:
-            data = urlopen(url, post_data).read()
+            request = Request(url, post_data)
+            if post_data is not None:
+                request.add_header("Content-type", "application/json")
+            
+            data = urlopen(request).read()
             obj = json.loads(data.decode(self.charset))
         except HTTPError as e:
             # some api-errors set the http-status, so here we might still get

@@ -72,11 +72,12 @@ class Bug(BugzillaObject):
         if attr == "assigned_to": return None if self.assigned_to_detail is None else self.assigned_to_detail["name"]
         elif attr == "cc": return [None if cc_detail is None else cc_detail["name"] for cc_detail in self.cc_detail]
         elif attr == "creator": return None if self.creator_detail is None else self.creator_detail["name"]
+        elif attr == "qa_contact": return None if self.qa_contact_detail is None else self.qa_contact_detail["name"]
         
         return BugzillaObject.__getattr__(self, attr)
     
     def __setattribute__(self, attr, value):
-        if attr in ("assigned_to", "cc", "creator"):
+        if attr in ("assigned_to", "cc", "creator", "qa_contact"):
             raise AttributeError("The virtual attribute '%s' cannot be overwritten")
         
         BugzillaObject.__setattribute__(self, attr, value)
