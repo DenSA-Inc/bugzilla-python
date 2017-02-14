@@ -118,6 +118,9 @@ class Bugzilla:
     def _get_milestone(self, data):
         return Milestone(data)
     
+    def _get_classification(self, data):
+        return Classification(data)
+    
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
         return self._get("version")["version"]
@@ -177,6 +180,11 @@ class Bugzilla:
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
         product_id = str(product_id)
         return self._get_product(self._get("product/" + product_id, **kw)["products"][0])
+    
+    def get_classification(self, c_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/classification.html'
+        c_id = str(c_id)
+        return [self._get_classification(obj) for obj in self._get("classification/" + c_id, **kw)["classifications"]]
     
     def get_last_visited(self, bug_ids = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'

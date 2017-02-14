@@ -200,6 +200,22 @@ class Milestone(BugzillaObject):
     def to_json(self, id_only = False):
         return dict(self)
 
+class Classification(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "description": "",
+        "sort_key": 0,
+        "products": []
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Classification.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self)
+
 class Attachment(BugzillaObject):
     ATTRIBUTES = {
         "data":             b"",
