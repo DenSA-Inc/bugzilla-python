@@ -289,3 +289,38 @@ class Flag(BugzillaObject):
         obj["modification_date"] = encode_bugzilla_datetime(self.modification_date)
         
         return obj
+
+class History(BugzillaObject):
+    ATTRIBUTES = {
+        "when": None,
+        "who": "",
+        "changes": []
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(History.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        obj = dict(self)
+        obj["when"] = encode_bugzilla_datetime(obj["when"])
+        obj["changes"] = [change.to_json() for change in obj["changes"]]
+        
+        return obj
+
+# Note: this class does not parse date/datetime-objects if they are passed to it.
+# That is because the field-value will be a string and there is no way to determine
+# the actual type of the field.
+class Change(BugzillaObject):
+    ATTRIBUTES = {
+        "added": "",
+        "removed": "",
+        "field_name": ""
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Change.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self)

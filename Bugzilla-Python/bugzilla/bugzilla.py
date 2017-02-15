@@ -99,6 +99,12 @@ class Bugzilla:
         
         return Bug(data)
     
+    def _get_history(self, data):
+        if "when" in data: data["when"] = parse_bugzilla_datetime(data["when"])
+        if "changes" in data: data["changes"] = [Change(obj) for obj in data["changes"]]
+        
+        return History(data)
+    
     def _get_product(self, data):
         if "components" in data: data["components"] = [self._get_component(obj) for obj in data["components"]]
         if "versions" in data: data["versions"] = [self._get_version(obj) for obj in data["versions"]]
@@ -167,6 +173,11 @@ class Bugzilla:
     def search_bugs(self, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
         return [self._get_bug(data) for data in self._get("bug", **kw)["bugs"]]
+    
+    def get_bug_history(self, bug_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        bug_id = str(bug_id)
+        return [self._get_history(history) for history in self._get("bug/" + bug_id + "/history", **kw)["bugs"][0]["history"]]
     
     def get_selectable_product_ids(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
