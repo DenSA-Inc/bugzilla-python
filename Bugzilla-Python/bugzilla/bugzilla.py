@@ -235,4 +235,4 @@ class Bugzilla:
             raise BugzillaException(-1, "This attachment does not have the required fields set")
         data = attachment.add_json()
         data["ids"] = ids
-        return [int(i) for i in self._post("bug/%i/attachment" % ids[0], data)]
+        return [int(i) for i in self._post("bug/%i/attachment" % ids[0], data)["ids"]]
