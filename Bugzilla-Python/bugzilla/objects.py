@@ -21,8 +21,37 @@ class BugzillaObject(dict):
     # (e.g. to avoid recursion)
     # things like converting dates to bugzilla-representation or attachment-data
     # to base64 should happen here
+    # Most classes ignore the id_only attribute because no minified version of
+    # them is necessary
     def to_json(self, id_only = False):
         raise RuntimeError("Subclasses have to implement this method")
+    
+    # return a jsonable object that will be sent if the bugzilla object wants to
+    # be added. This includes only fields that can be sent, which should to a
+    # subset of to_json(). Since classes have default 'invalid' values set in the
+    # constructor subclasses should check if these values are 'invalid' and only
+    # return those values which are valid.
+    # The id_only parameter is the same as in the to_json-method
+    def add_json(self, id_only = False):
+        raise RuntimeError("%s's cannot be added (maybe not yet)" % self.__class__.__name__)
+    
+    # check if all fields are set (and not the 'invalid' default value) and the object
+    # can be added according to the bugzilla-documentation. If this method returns
+    # False, trying to add the object to bugzilla will result in an error.
+    def can_be_added(self):
+        return False
+    
+    # returns a jsonable object that will be sent if the bugzilla object wants to
+    # be updated. This method is similar to add_json, yet it might return other fields.
+    def update_json(self, id_only = False):
+        raise RuntimeError("%s's cannot be added (maybe not yet)" % self.__class__.__name__)
+    
+    # similiar to can_be_added, this method returns True if the object can be added,
+    # False otherwise. Most subclasses will return True if the id is valid and the
+    # class can be updated in general.
+    # if this method returns False trying to update will result in an error
+    def can_be_updated(self):
+        return False
     
     def set_default_attributes(self, attributes):
         for key, value in deepcopy(attributes).items():
@@ -266,6 +295,28 @@ class Attachment(BugzillaObject):
         obj["flags"] = [flag.to_json() for flag in self.flags]
         
         return obj
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("is_patch", "comment", "summary", "content_type", "file_name", "is_private"):
+            dct[field] = self[field]
+        
+        dct["data"] = base64.b64encode(self.data).decode("ascii")
+        dct["flags"] = []
+        for flag in self.flags:
+            flag_dct = {
+                "name": flag.name,
+                "type_id": flag.type_id,
+                "status": flag.status
+            }
+            if flag.requestee: flag_dct["requestee"] = flag.requestee
+            
+            dct["flags"].append(flag_dct)
+            
+        return dct
+    
+    def can_be_added(self):
+        return self.file_name and self.summary and self.content_type
 
 class Flag(BugzillaObject):
     ATTRIBUTES = {
