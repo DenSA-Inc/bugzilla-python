@@ -4,9 +4,14 @@ from copy import deepcopy
 
 class BugzillaObject(dict):
     # Treat the object-attributes as dict-indizes for easier jsoning
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-    __delitem__ = dict.__delitem__
+    def __getattr__(self, attr):
+        return self.__getitem__(attr)
+    
+    def __setattr__(self, attr, value):
+        self.__setitem__(attr, value)
+    
+    def __delattr__(self, attr):
+        self.__delitem__(attr)
     
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, dict.__repr__(self.to_json()))
@@ -68,19 +73,19 @@ class Bug(BugzillaObject):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Bug.ATTRIBUTES)
     
-    def __getattr__(self, attr):
+    def __getitem__(self, attr):
         if attr == "assigned_to": return None if self.assigned_to_detail is None else self.assigned_to_detail["name"]
         elif attr == "cc": return [None if cc_detail is None else cc_detail["name"] for cc_detail in self.cc_detail]
         elif attr == "creator": return None if self.creator_detail is None else self.creator_detail["name"]
         elif attr == "qa_contact": return None if self.qa_contact_detail is None else self.qa_contact_detail["name"]
         
-        return BugzillaObject.__getattr__(self, attr)
+        return BugzillaObject.__getitem__(self, attr)
     
-    def __setattribute__(self, attr, value):
+    def __setitem__(self, attr, value):
         if attr in ("assigned_to", "cc", "creator", "qa_contact"):
             raise AttributeError("The virtual attribute '%s' cannot be overwritten")
         
-        BugzillaObject.__setattribute__(self, attr, value)
+        BugzillaObject.__setitem__(self, attr, value)
     
     def to_json(self, id_only = False):
         if id_only:
@@ -238,19 +243,19 @@ class Attachment(BugzillaObject):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Attachment.ATTRIBUTES)
     
-    def __getattr__(self, attr):
+    def __getitem__(self, attr):
         # to avoid the trouble of setting the size along with the data, size is
         # a virtual attribute
         if attr == "size":
             return len(self.data)
         else:
-            return BugzillaObject.__getattr__(self, attr)
+            return BugzillaObject.__getitem__(self, attr)
     
-    def __setattribute__(self, attr, value):
+    def __setitem__(self, attr, value):
         if attr == "size":
             raise AttributeError("The virtual attribute 'size' cannot be overwritten")
         
-        BugzillaObject.__setattribute__(self, attr, value)
+        BugzillaObject.__setitem__(self, attr, value)
     
     def to_json(self, id_only = False):
         obj = dict(self)
