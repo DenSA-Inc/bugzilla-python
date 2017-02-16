@@ -317,6 +317,27 @@ class Attachment(BugzillaObject):
     
     def can_be_added(self):
         return bool(self.file_name and self.summary and self.content_type)
+    
+    def update_json(self, id_only = False):
+        dct = {}
+        for field in ("file_name", "summary", "content_type", "is_patch", "is_private", "is_obsolete"):
+            dct[field] = self[field]
+        
+        dct["flags"] = []
+        for flag in self.flags:
+            flag_dct = {
+                "name": flag.name,
+                "type_id": flag.type_id,
+                "status": flag.status
+            }
+            if flag.requestee: flag_dct["requestee"] = flag.requestee
+            
+            dct["flags"].append(flag_dct)
+        
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
 
 class Flag(BugzillaObject):
     ATTRIBUTES = {
@@ -375,3 +396,20 @@ class Change(BugzillaObject):
     
     def to_json(self, id_only = False):
         return dict(self)
+
+class UpdateResult(BugzillaObject):
+    ATTRIBUTES = {
+        "changes": [],
+        "id": -1,
+        "last_change_time": None
+    }
+    
+    def __init__(self, attributes):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(UpdateResult.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        dct = dict(self)
+        dct["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
+        
+        return dct

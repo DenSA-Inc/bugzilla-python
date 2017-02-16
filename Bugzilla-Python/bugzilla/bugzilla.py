@@ -29,12 +29,15 @@ class Bugzilla:
         self.charset = "utf-8" # i have to lookup the right charset, until then utf-8 should suffice
     
     def _get(self, path, **kw):
-        return self._read_request(path, None, **kw)
+        return self._read_request("GET", path, None, **kw)
     
     def _post(self, path, data, **kw):
-        return self._read_request(path, data, **kw)
+        return self._read_request("POST", path, data, **kw)
     
-    def _read_request(self, path, post_data, **kw):
+    def _put(self, path, data, **kw):
+        return self._read_request("PUT", path, data, **kw)
+    
+    def _read_request(self, method, path, post_data, **kw):
         if self.api_key:
             kw["api_key"] = self.api_key
         # sequences supplied for the in/exclude_fields will automatically be comma-joined
@@ -50,6 +53,7 @@ class Bugzilla:
         url = self.url + path + query
         try:
             request = Request(url, post_data)
+            request.get_method = lambda: method
             if post_data is not None:
                 request.add_header("Content-type", "application/json")
             
@@ -130,6 +134,11 @@ class Bugzilla:
     
     def _get_classification(self, data):
         return Classification(data)
+    
+    def _get_update_result(self, data):
+        if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
+        
+        return UpdateResult(data)
     
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
@@ -238,3 +247,15 @@ class Bugzilla:
         data["ids"] = ids
         data["comment"] = comment
         return [int(i) for i in self._post("bug/%i/attachment" % ids[0], data)["ids"]]
+    
+    def update_attachment(self, attachment, ids = None, comment = ""):
+        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
+        if ids is None: ids = attachment.id
+        if isinstance(ids, int): ids = [ids]
+        
+        if not attachment.can_be_updated():
+            raise BugzillaException(-1, "This attachment does not have the required fields set")
+        data = attachment.update_json()
+        data["ids"] = ids
+        data["comment"] = comment
+        return [self._get_update_result(obj) for obj in self._put("bug/attachment/%i" % ids[0], data)["attachments"]]
