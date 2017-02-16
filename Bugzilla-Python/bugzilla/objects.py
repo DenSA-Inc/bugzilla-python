@@ -131,6 +131,25 @@ class Bug(BugzillaObject):
         obj["qa_contact"] = self.qa_contact
         
         return obj
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("product", "component", "summary", "version", "op_sys",
+                    "platform", "priority", "severity", "alias", "assigned_to", "cc", "groups",
+                    "keywords", "qa_contact", "status", "resolution", "target_milestone"):
+            # fields will only be set if valid. since most fields here are string, they should
+            # be valid if they are non-empty. they will not be copied by default because bugzilla
+            # will require a valid value if set. (I had my problems with 'resolution')
+            if self[field]: dct[field] = self[field]
+        dct["flags"] = [flag.to_json() for flag in self.flags]
+        
+        return dct
+    
+    def can_be_added(self):
+        # beware that bugzilla might require more fields than those checked here
+        # yet these are the only ones that are said to be required in the documentation
+        # my bugzilla-installation (version 5.0) required much more fields
+        return bool(self.product and self.component and self.summary and self.version)
 
 class Product(BugzillaObject):
     ATTRIBUTES = {

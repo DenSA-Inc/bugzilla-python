@@ -259,3 +259,12 @@ class Bugzilla:
         data["ids"] = ids
         data["comment"] = comment
         return [self._get_update_result(obj) for obj in self._put("bug/attachment/%i" % ids[0], data)["attachments"]]
+    
+    def add_bug(self, bug, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        if not bug.can_be_added():
+            raise BugzillaException(-1, "This attachment does not have the required fields set")
+        
+        data = bug.add_json()
+        data.update(kw)
+        return int(self._post("bug", data)["id"])
