@@ -216,6 +216,28 @@ class Component(BugzillaObject):
         obj["flag_types"]["attachment"] = [ft.to_json() for ft in self.flag_types["attachment"]]
         
         return obj
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "description", "default_qa_contact"):
+            if field: dct[field] = self[field]
+        dct["default_assignee"] = self.default_assigned_to
+        
+        return dct
+    
+    def can_be_added(self):
+        return bool(self.name and self.description and self.default_assigned_to)
+    
+    def update_json(self):
+        dct = {}
+        for field in ("name", "description", "default_qa_contact"):
+            dct[field] = self[field]
+        dct["default_assignee"] = self.default_assigned_to
+        
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
 
 class FlagType(BugzillaObject):
     ATTRIBUTES = {

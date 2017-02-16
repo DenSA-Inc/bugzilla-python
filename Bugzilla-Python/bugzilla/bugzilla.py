@@ -37,6 +37,9 @@ class Bugzilla:
     def _put(self, path, data, **kw):
         return self._read_request("PUT", path, data, **kw)
     
+    def _delete(self, path, data, **kw):
+        return self._read_request("DELETE", path, data, **kw)
+    
     def _read_request(self, method, path, post_data, **kw):
         if self.api_key:
             kw["api_key"] = self.api_key
@@ -304,3 +307,38 @@ class Bugzilla:
         comment_id = str(comment_id)
         data = {"comment_id": comment_id, "add": add, "remove": remove}
         return self._put("bug/comment/%s/tags" % comment_id, data)
+    
+    # there are several parameters you can pass to this method
+    # these are product, default_cc and is_open
+    # the product-parameter is mandatory
+    def add_component(self, component, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#create-component'
+        if not component.can_be_added():
+            raise BugzillaException(-1, "This component does not have the required fields set")
+        
+        data = component.add_json()
+        data.update(kw)
+        return int(self._post("component", data)["id"])
+    
+    # both of the methods are not tested yet because i was too lazy to install the latest version
+    def update_component(self, component, product = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#update-component'
+        data = component.update_json()
+        if product is None:
+            path = str(component.id)
+            data["ids"] = component.id
+        else:
+            path = product + "/" + str(component.name)
+            data["names"] = [{"product": product, "component": component.name}]
+        
+        data.update(kw)
+        return self._put("component/" + path, data)["components"]
+    
+    def delete_component(self, component_id, product = None):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#delete-component'
+        if product is None:
+            path = str(component_id)
+        else:
+            path = product + "/" + str(component_id)
+        
+        return self._delete("component/" + path, None)["components"][0]["id"]
