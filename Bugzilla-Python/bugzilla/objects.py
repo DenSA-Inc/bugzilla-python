@@ -298,7 +298,7 @@ class Attachment(BugzillaObject):
     
     def add_json(self, id_only = False):
         dct = {}
-        for field in ("is_patch", "comment", "summary", "content_type", "file_name", "is_private"):
+        for field in ("is_patch", "summary", "content_type", "file_name", "is_private"):
             dct[field] = self[field]
         
         dct["data"] = base64.b64encode(self.data).decode("ascii")
@@ -316,7 +316,7 @@ class Attachment(BugzillaObject):
         return dct
     
     def can_be_added(self):
-        return self.file_name and self.summary and self.content_type
+        return bool(self.file_name and self.summary and self.content_type)
 
 class Flag(BugzillaObject):
     ATTRIBUTES = {

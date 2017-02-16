@@ -228,11 +228,13 @@ class Bugzilla:
         
         return self._post(url, data, **kw)
     
-    def add_attachment(self, attachment, ids):
+    def add_attachment(self, attachment, ids, comment = ""):
+        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
         if isinstance(ids, int): ids = [ids]
         
         if not attachment.can_be_added():
             raise BugzillaException(-1, "This attachment does not have the required fields set")
         data = attachment.add_json()
         data["ids"] = ids
+        data["comment"] = comment
         return [int(i) for i in self._post("bug/%i/attachment" % ids[0], data)["ids"]]
