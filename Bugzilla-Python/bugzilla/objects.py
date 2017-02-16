@@ -61,6 +61,10 @@ class BugzillaObject(dict):
 # the none-_detail-fields will just refer to the _detail-fields. E.g. creator wil look up
 # creator_detail. That way, setting creator_detail is enough to set both fields.
 class Bug(BugzillaObject):
+    # I'm currently just assuming that all custom fields start with cf_
+    # I'll check this later
+    CUSTOM_FIELD_PREFIX = "cf_"
+    
     ATTRIBUTES = {
         "alias": [],
         "assigned_to_detail": None,
@@ -142,6 +146,7 @@ class Bug(BugzillaObject):
             # will require a valid value if set. (I had my problems with 'resolution')
             if self[field]: dct[field] = self[field]
         dct["flags"] = [flag.to_json() for flag in self.flags]
+        dct.update(self.get_custom_fields())
         
         return dct
     
@@ -150,6 +155,14 @@ class Bug(BugzillaObject):
         # yet these are the only ones that are said to be required in the documentation
         # my bugzilla-installation (version 5.0) required much more fields
         return bool(self.product and self.component and self.summary and self.version)
+    
+    def get_custom_fields(self):
+        fields = {}
+        for key, value in self.items():
+            if key.startswith(Bug.CUSTOM_FIELD_PREFIX):
+                fields[key] = value
+        
+        return fields
 
 class Product(BugzillaObject):
     ATTRIBUTES = {
