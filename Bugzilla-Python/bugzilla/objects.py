@@ -432,3 +432,41 @@ class UpdateResult(BugzillaObject):
         dct["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
         
         return dct
+
+class Comment(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "bug_id": -1,
+        "attachment_id": None,
+        "count": -1,
+        "text": "",
+        "creator": "",
+        "time": None,
+        "creation_time": None,
+        "is_private": False,
+        "is_markdown": False,
+        "tags": []
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Comment.ATTRIBUTES)
+    
+    def to_json(self):
+        dct = dict(self)
+        dct["time"] = encode_bugzilla_datetime(dct["time"])
+        dct["creation_time"] = encode_bugzilla_datetime(dct["creation_time"])
+        
+        return dct
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("is_private", "is_markdown"):
+            dct[field] = self[field]
+        
+        dct["comment"] = self.text
+        if self.tags: dct["comment_tags"] = self.tags
+        return dct
+    
+    def can_be_added(self):
+        return bool(self.text)

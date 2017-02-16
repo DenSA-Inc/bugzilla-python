@@ -69,7 +69,7 @@ class Bugzilla:
                 # no valid api-response, maybe a http-500 or something else
                 raise e
         
-        if obj.get("error"):
+        if isinstance(obj, dict) and obj.get("error"):
             raise BugzillaException(obj["code"], obj["message"])
         
         return obj
@@ -139,6 +139,12 @@ class Bugzilla:
         if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
         
         return UpdateResult(data)
+    
+    def _get_comment(self, data):
+        if "time" in data: data["time"] = parse_bugzilla_datetime(data["time"])
+        if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
+        
+        return Comment(data)
     
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
@@ -210,6 +216,20 @@ class Bugzilla:
         c_id = str(c_id)
         return [self._get_classification(obj) for obj in self._get("classification/" + c_id, **kw)["classifications"]]
     
+    def get_comments_by_bug(self, bug_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        bug_id = str(bug_id)
+        return [self._get_comment(obj) for obj in self._get("bug/%s/comment" % bug_id, **kw)["bugs"][bug_id]["comments"]]
+    
+    def get_comment(self, c_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        c_id = str(c_id)
+        return self._get_comment(self._get("bug/comment/" + c_id, **kw)["comments"][c_id])
+    
+    def search_comment_tags(self, query, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        return self._get("bug/comment/tags/" + query, **kw)
+    
     def get_last_visited(self, bug_ids = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
         if not self.api_key:
@@ -263,8 +283,24 @@ class Bugzilla:
     def add_bug(self, bug, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
         if not bug.can_be_added():
-            raise BugzillaException(-1, "This attachment does not have the required fields set")
+            raise BugzillaException(-1, "This bug does not have the required fields set")
         
         data = bug.add_json()
         data.update(kw)
         return int(self._post("bug", data)["id"])
+    
+    def add_comment(self, comment, bug_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        if not comment.can_be_added():
+            raise BugzillaException(-1, "This comment does not have the required fields set")
+        
+        bug_id = str(bug_id)
+        data = comment.add_json()
+        data.update(kw)
+        return int(self._post("bug/%s/comment" % bug_id, data)["id"])
+    
+    def update_comment_tags(self, comment_id, add = [], remove = []):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        comment_id = str(comment_id)
+        data = {"comment_id": comment_id, "add": add, "remove": remove}
+        return self._put("bug/comment/%s/tags" % comment_id, data)
