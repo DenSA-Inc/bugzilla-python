@@ -153,6 +153,27 @@ class Product(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Product.ATTRIBUTES)
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "description", "version", "has_unconfirmed", "classification",
+                    "default_milestone"):
+            dct[field] = self[field]
+        
+        return dct
+    
+    def can_be_added(self):
+        return bool(self.name and self.description and self.version)
+    
+    def update_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "default_milestone", "description", "has_unconfirmed"):
+            dct[field] = self[field]
+        
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
 
 class Component(BugzillaObject):
     ATTRIBUTES = {

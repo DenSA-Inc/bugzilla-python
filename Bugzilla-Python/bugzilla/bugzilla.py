@@ -442,3 +442,23 @@ class Bugzilla:
         data["ids"] = ids
         data.update(kw)
         return [UpdateResult(data) for data in self._put("user/%i" % ids[0], data)["users"]]
+    
+    def add_product(self, product, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html#create-product'
+        if not product.can_be_added():
+            raise BugzillaException(-1, "This product does not have the required fields set")
+        data = product.add_json()
+        data.update(kw)
+        return int(self._post("product", data)["ids"])
+    
+    def update_product(self, product, ids = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html#update-product'
+        if ids is None: ids = product.id
+        if isinstance(ids, int): ids = [ids]
+        
+        if not product.can_be_updated():
+            raise BugzillaException(-1, "This product does not have the required fields set")
+        data = product.update_json()
+        data["ids"] = ids
+        data.update(kw)
+        return [UpdateResult(data) for data in self._put("product/%i" % ids[0], data)["products"]]
