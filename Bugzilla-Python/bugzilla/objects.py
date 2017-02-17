@@ -14,23 +14,12 @@ class BugzillaObject(dict):
         self.__delitem__(attr)
     
     def __repr__(self):
-        return "%s(%s)" % (type(self).__name__, dict.__repr__(self.to_json()))
-    
-    # convert the object to a jsonable-version to send as request
-    # if id_only is true, return only the most important attributes
-    # (e.g. to avoid recursion)
-    # things like converting dates to bugzilla-representation or attachment-data
-    # to base64 should happen here
-    # Most classes ignore the id_only attribute because no minified version of
-    # them is necessary
-    def to_json(self, id_only = False):
-        raise RuntimeError("Subclasses have to implement this method")
+        return "%s(%s)" % (type(self).__name__, dict.__repr__(self))
     
     # return a jsonable object that will be sent if the bugzilla object wants to
-    # be added. This includes only fields that can be sent, which should to a
-    # subset of to_json(). Since classes have default 'invalid' values set in the
-    # constructor subclasses should check if these values are 'invalid' and only
-    # return those values which are valid.
+    # be added. This includes only fields that can be sent. Since classes have 
+    # default 'invalid' values set in the constructor subclasses should check if
+    # these values are 'invalid' and only return those values which are valid.
     # The id_only parameter is the same as in the to_json-method
     def add_json(self, id_only = False):
         raise RuntimeError("%s's cannot be added (maybe not yet)" % self.__class__.__name__)
@@ -102,7 +91,7 @@ class Bug(BugzillaObject):
         "whiteboard": ""
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Bug.ATTRIBUTES)
     
@@ -119,22 +108,6 @@ class Bug(BugzillaObject):
             raise AttributeError("The virtual attribute '%s' cannot be overwritten")
         
         BugzillaObject.__setitem__(self, attr, value)
-    
-    def to_json(self, id_only = False):
-        if id_only:
-            return self.id
-        
-        obj = dict(self)
-        obj["assigned_to"] = self.assigned_to
-        obj["blocks"] = [block.to_json(True) for block in self.blocks]
-        obj["cc"] = self.cc
-        obj["creation_time"] = encode_bugzilla_datetime(self.creation_time)
-        obj["creator"] = self.creator
-        obj["flags"] = [flag.to_json() for flag in self.flags]
-        obj["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
-        obj["qa_contact"] = self.qa_contact
-        
-        return obj
     
     def add_json(self, id_only = False):
         dct = {}
@@ -178,17 +151,9 @@ class Product(BugzillaObject):
         "milestones": []
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Product.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        obj = dict(self)
-        obj["components"] = [component.to_json() for component in self.components]
-        obj["versions"] = [version.to_json() for version in self.versions]
-        obj["milestones"] = [milestone.to_json() for milestone in self.milestones]
-        
-        return obj
 
 class Component(BugzillaObject):
     ATTRIBUTES = {
@@ -205,17 +170,9 @@ class Component(BugzillaObject):
         }
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Component.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        obj = dict(self)
-        obj["flag_types"] = dict(self.flag_types)
-        obj["flag_types"]["bug"] = [ft.to_json() for ft in self.flag_types["bug"]]
-        obj["flag_types"]["attachment"] = [ft.to_json() for ft in self.flag_types["attachment"]]
-        
-        return obj
     
     def add_json(self, id_only = False):
         dct = {}
@@ -254,12 +211,9 @@ class FlagType(BugzillaObject):
         "request_group": None
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(FlagType.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self) # TODO: think about how to handle the group-fields an the list (reference-problem)
 
 class Version(BugzillaObject):
     ATTRIBUTES = {
@@ -268,12 +222,9 @@ class Version(BugzillaObject):
         "is_active": False
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Version.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self)
 
 class Milestone(BugzillaObject):
     ATTRIBUTES = {
@@ -282,12 +233,9 @@ class Milestone(BugzillaObject):
         "is_active": False
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Milestone.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self)
 
 class Classification(BugzillaObject):
     ATTRIBUTES = {
@@ -298,12 +246,9 @@ class Classification(BugzillaObject):
         "products": []
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Classification.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self)
 
 class Attachment(BugzillaObject):
     ATTRIBUTES = {
@@ -339,16 +284,6 @@ class Attachment(BugzillaObject):
             raise AttributeError("The virtual attribute 'size' cannot be overwritten")
         
         BugzillaObject.__setitem__(self, attr, value)
-    
-    def to_json(self, id_only = False):
-        obj = dict(self)
-        obj["size"] = self.size
-        obj["data"] = base64.b64encode(self.data).decode("ascii")
-        obj["creation_time"] = encode_bugzilla_datetime(self.creation_time)
-        obj["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
-        obj["flags"] = [flag.to_json() for flag in self.flags]
-        
-        return obj
     
     def add_json(self, id_only = False):
         dct = {}
@@ -408,13 +343,6 @@ class Flag(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Flag.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        obj = dict(self)
-        obj["creation_date"] = encode_bugzilla_datetime(self.creation_date)
-        obj["modification_date"] = encode_bugzilla_datetime(self.modification_date)
-        
-        return obj
 
 class History(BugzillaObject):
     ATTRIBUTES = {
@@ -423,16 +351,9 @@ class History(BugzillaObject):
         "changes": []
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(History.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        obj = dict(self)
-        obj["when"] = encode_bugzilla_datetime(obj["when"])
-        obj["changes"] = [change.to_json() for change in obj["changes"]]
-        
-        return obj
 
 # Note: this class does not parse date/datetime-objects if they are passed to it.
 # That is because the field-value will be a string and there is no way to determine
@@ -444,12 +365,9 @@ class Change(BugzillaObject):
         "field_name": ""
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Change.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self)
 
 class UpdateResult(BugzillaObject):
     ATTRIBUTES = {
@@ -458,15 +376,9 @@ class UpdateResult(BugzillaObject):
         "last_change_time": None
     }
     
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(UpdateResult.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        dct = dict(self)
-        dct["last_change_time"] = encode_bugzilla_datetime(self.last_change_time)
-        
-        return dct
 
 class Comment(BugzillaObject):
     ATTRIBUTES = {
@@ -486,13 +398,6 @@ class Comment(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Comment.ATTRIBUTES)
-    
-    def to_json(self):
-        dct = dict(self)
-        dct["time"] = encode_bugzilla_datetime(dct["time"])
-        dct["creation_time"] = encode_bugzilla_datetime(dct["creation_time"])
-        
-        return dct
     
     def add_json(self, id_only = False):
         dct = {}
@@ -526,12 +431,6 @@ class BugField(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(BugField.ATTRIBUTES)
-    
-    def to_json(self):
-        dct = dict(self)
-        dct["values"] = [value.to_json() for value in self["values"]]
-        
-        return dct
 
 class BugFieldValue(BugzillaObject):
     ATTRIBUTES = {
@@ -547,6 +446,3 @@ class BugFieldValue(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(BugField.ATTRIBUTES)
-    
-    def to_json(self, id_only = False):
-        return dict(self)
