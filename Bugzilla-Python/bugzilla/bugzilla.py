@@ -283,6 +283,10 @@ class Bugzilla:
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
         return [self._get_user(data) for data in self._get("user", **kw)["users"]]
     
+    def whoami(self, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#who-am-i'
+        return User(self._get("whoami", **kw))
+    
     def get_group(self, group_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
         # TODO: find the solution
@@ -291,9 +295,9 @@ class Bugzilla:
         # group_id = str(group_id)
         # return [self._get_group(data) for data in self._get("group/" + group_id, **kw)["groups"]][0]
         if isinstance(group_id, str):
-            return self.search_groups(names = [group_id], **kw)
+            return self.search_groups(names = [group_id], **kw)[0]
         else:
-            return self.search_groups(ids = [group_id], **kw)
+            return self.search_groups(ids = [group_id], **kw)[0]
     
     def search_groups(self, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
@@ -395,3 +399,24 @@ class Bugzilla:
             path = product + "/" + str(component_id)
         
         return self._delete("component/" + path, None)["components"][0]["id"]
+    
+    def add_group(self, group, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#create-group'
+        if not group.can_be_added():
+            raise BugzillaException(-1, "This group does not have the required fields set")
+        
+        data = group.add_json()
+        data.update(kw)
+        return int(self._post("group", data)["id"])
+    
+    def update_group(self, group, ids = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#update-group'
+        if ids is None: ids = group.id
+        if isinstance(ids, int): ids = [ids]
+        
+        if not group.can_be_updated():
+            raise BugzillaException(-1, "This group does not have the required fields set")
+        data = group.update_json()
+        data.update(kw)
+        data["ids"] = ids
+        return [UpdateResult(data) for data in self._put("group/%i" % ids[0], data)["groups"]]

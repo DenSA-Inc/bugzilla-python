@@ -478,6 +478,26 @@ class Group(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Group.ATTRIBUTES)
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "description", "user_regexp", "is_active"):
+            dct[field] = self[field]
+        
+        return dct
+    
+    def can_be_added(self):
+        return bool(self.name and self.description)
+    
+    def update_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "description", "user_regexp", "is_active"):
+            dct[field] = self[field]
+        
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
 
 class Search(BugzillaObject):
     ATTRIBUTES = {
