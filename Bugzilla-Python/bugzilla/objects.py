@@ -1,5 +1,4 @@
 import base64
-from .util import encode_bugzilla_datetime
 from copy import deepcopy
 
 class BugzillaObject(dict):
@@ -446,3 +445,47 @@ class BugFieldValue(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(BugField.ATTRIBUTES)
+
+class User(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "real_name": "",
+        "email": "",
+        "name": "",
+        "can_login": True,
+        "email_enabled": False,
+        "login_denied_text": "",
+        "groups": [],
+        "saved_searches": [],
+        "saved_reports": []
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(User.ATTRIBUTES)
+
+class Group(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "description": "",
+        "is_bug_group": False,
+        "user_regexp": "",
+        "is_active": False,
+        "membership": []
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Group.ATTRIBUTES)
+
+class Search(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "name": "",
+        "query": ""
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(Search.ATTRIBUTES)

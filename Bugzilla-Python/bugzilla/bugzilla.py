@@ -156,6 +156,18 @@ class Bugzilla:
         
         return BugField(data)
     
+    def _get_user(self, data):
+        if "groups" in data: data["groups"] = [self._get_group(obj) for obj in data["groups"]]
+        if "saved_searches" in data: data["saved_searches"] = [Search(obj) for obj in data["saved_searches"]]
+        if "saved_reports" in data: data["saved_reports"] = [Search(obj) for obj in data["saved_reports"]]
+        
+        return User(data)
+    
+    def _get_group(self, data):
+        if "membership" in data: data["membership"] = [self._get_user(obj) for obj in data["membership"]]
+        
+        return Group(data)
+    
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
         return self._get("version")["version"]
@@ -259,6 +271,33 @@ class Bugzilla:
         if id_or_name is not None: path += "/" + str(id_or_name)
         
         return [self._get_field(field) for field in self._get(path, **kw)["fields"]]
+    
+    def get_user(self, user_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
+        user_id = str(user_id)
+        return [self._get_user(data) for data in self._get("user/" + user_id, **kw)["users"]][0]
+    
+    # there are several possible parameters to this method
+    # these are ids, names, match, limit, group_ids, groups, include_disabled
+    def search_users(self, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
+        return [self._get_user(data) for data in self._get("user", **kw)["users"]]
+    
+    def get_group(self, group_id, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
+        # TODO: find the solution
+        # for some reason, bugzilla 5.0 does not find the resource, so this workaround has to do
+        # this was the original code:
+        # group_id = str(group_id)
+        # return [self._get_group(data) for data in self._get("group/" + group_id, **kw)["groups"]][0]
+        if isinstance(group_id, str):
+            return self.search_groups(names = [group_id], **kw)
+        else:
+            return self.search_groups(ids = [group_id], **kw)
+    
+    def search_groups(self, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
+        return [self._get_group(data) for data in self._get("group", **kw)["groups"]]
     
     def update_last_visited(self, bug_ids, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
