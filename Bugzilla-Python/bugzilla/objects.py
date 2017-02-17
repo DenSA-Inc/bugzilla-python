@@ -505,3 +505,48 @@ class Comment(BugzillaObject):
     
     def can_be_added(self):
         return bool(self.text)
+
+# Be careful with this one. values() is already a dict-method, you have to use obj["values"]
+# to get the bug-field-values
+class BugField(BugzillaObject):
+    ATTRIBUTES = {
+        "id": -1,
+        "type": 0,
+        "is_custom": False,
+        "name": "",
+        "display_name": "",
+        "is_mandatory": False,
+        "is_on_bug_entry": False,
+        "visibility_field": None,
+        "visibility_values": [],
+        "value_field": None,
+        "values": []
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(BugField.ATTRIBUTES)
+    
+    def to_json(self):
+        dct = dict(self)
+        dct["values"] = [value.to_json() for value in self["values"]]
+        
+        return dct
+
+class BugFieldValue(BugzillaObject):
+    ATTRIBUTES = {
+        "name": "",
+        "sort_key": 0,
+        "visibility_values": [],
+        "is_active": False,
+        "description": "",
+        "is_open": False,
+        "can_change_to": []
+    }
+    
+    def __init__(self, attributes = {}):
+        BugzillaObject.__init__(self, attributes)
+        self.set_default_attributes(BugField.ATTRIBUTES)
+    
+    def to_json(self, id_only = False):
+        return dict(self)

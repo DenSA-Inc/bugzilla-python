@@ -26,7 +26,9 @@ class Bugzilla:
         
         self.url = url
         self.api_key = api_key
-        self.charset = "utf-8" # i have to lookup the right charset, until then utf-8 should suffice
+        # i have to lookup the right charset, until then utf-8 should suffice
+        # UPDATE: appearently the charset utf-8 is hardcoded into the api, so it's cool
+        self.charset = "utf-8"
     
     def _get(self, path, **kw):
         return self._read_request("GET", path, None, **kw)
@@ -149,6 +151,11 @@ class Bugzilla:
         
         return Comment(data)
     
+    def _get_field(self, data):
+        if "values" in data: data["values"] = [BugFieldValue(obj) for obj in data["values"]]
+        
+        return BugField(data)
+    
     def get_version(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
         return self._get("version")["version"]
@@ -245,6 +252,13 @@ class Bugzilla:
             kw["ids"] = bug_ids[1:]
         
         return self._get(url, **kw)
+    
+    def get_fields(self, id_or_name = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/field.html'
+        path = "field/bug"
+        if id_or_name is not None: path += "/" + str(id_or_name)
+        
+        return [self._get_field(field) for field in self._get(path, **kw)["fields"]]
     
     def update_last_visited(self, bug_ids, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
