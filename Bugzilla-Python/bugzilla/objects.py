@@ -463,6 +463,26 @@ class User(BugzillaObject):
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(User.ATTRIBUTES)
+    
+    def add_json(self, id_only = False):
+        return {
+            "email": self.email,
+            "full_name": self.real_name
+        }
+    
+    def can_be_added(self):
+        return bool(self.email)
+    
+    def update_json(self, id_only = False):
+        dct = {}
+        for field in ("email", "email_enabled", "login_denied_text"):
+            dct[field] = self[field]
+        dct["full_name"] = self.real_name
+        
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
 
 class Group(BugzillaObject):
     ATTRIBUTES = {

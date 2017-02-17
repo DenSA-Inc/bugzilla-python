@@ -420,3 +420,25 @@ class Bugzilla:
         data.update(kw)
         data["ids"] = ids
         return [UpdateResult(data) for data in self._put("group/%i" % ids[0], data)["groups"]]
+    
+    def add_user(self, user, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#create-user'
+        if not user.can_be_added():
+            raise BugzillaException(-1, "This user does not have the required fields set")
+        data = user.add_json()
+        data.update(kw)
+        return int(self._post("user", data)["ids"])
+    
+    # TODO: until now, the group-objects for this call have to be crafted yourself.
+    # find some way to make this more elegant
+    def update_user(self, user, ids = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#update-user'
+        if ids is None: ids = user.id
+        if isinstance(ids, int): ids = [ids]
+        
+        if not user.can_be_updated():
+            raise BugzillaException(-1, "This user does not have the required fields set")
+        data = user.update_json()
+        data["ids"] = ids
+        data.update(kw)
+        return [UpdateResult(data) for data in self._put("user/%i" % ids[0], data)["users"]]
