@@ -1,6 +1,6 @@
 import json
 from base64 import b64decode
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote_plus
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
 from .objects import *
@@ -29,6 +29,10 @@ class Bugzilla:
         # i have to lookup the right charset, until then utf-8 should suffice
         # UPDATE: appearently the charset utf-8 is hardcoded into the api, so it's cool
         self.charset = "utf-8"
+    
+    # a little helper function to encode url-parameters
+    def _quote(self, string):
+        return quote_plus(string)
     
     def _get(self, path, **kw):
         return self._read_request("GET", path, None, **kw)
@@ -200,12 +204,12 @@ class Bugzilla:
     def get_attachments_by_bug(self, bug, **kw):
         'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
         bug_id = str(bug.id if isinstance(bug, Bug) else bug)
-        return [self._get_attachment(data) for data in self._get("bug/%s/attachment" % bug_id, **kw)["bugs"][bug_id]]
+        return [self._get_attachment(data) for data in self._get("bug/%s/attachment" % self._quote(bug_id), **kw)["bugs"][bug_id]]
     
     def get_bug(self, bug_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
         bug_id = str(bug_id)
-        return self._get_bug(self._get("bug/" + bug_id, **kw)["bugs"][0])
+        return self._get_bug(self._get("bug/" + self._quote(bug_id), **kw)["bugs"][0])
     
     def search_bugs(self, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
@@ -214,7 +218,7 @@ class Bugzilla:
     def get_bug_history(self, bug_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
         bug_id = str(bug_id)
-        return [self._get_history(history) for history in self._get("bug/" + bug_id + "/history", **kw)["bugs"][0]["history"]]
+        return [self._get_history(history) for history in self._get("bug/%s/history" % self._quote(bug_id), **kw)["bugs"][0]["history"]]
     
     def get_selectable_product_ids(self):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
@@ -231,26 +235,26 @@ class Bugzilla:
     def get_product(self, product_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
         product_id = str(product_id)
-        return self._get_product(self._get("product/" + product_id, **kw)["products"][0])
+        return self._get_product(self._get("product/" + self._quote(product_id), **kw)["products"][0])
     
     def get_classification(self, c_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/classification.html'
         c_id = str(c_id)
-        return [self._get_classification(obj) for obj in self._get("classification/" + c_id, **kw)["classifications"]]
+        return [self._get_classification(obj) for obj in self._get("classification/" + self._quote(c_id), **kw)["classifications"]]
     
     def get_comments_by_bug(self, bug_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
         bug_id = str(bug_id)
-        return [self._get_comment(obj) for obj in self._get("bug/%s/comment" % bug_id, **kw)["bugs"][bug_id]["comments"]]
+        return [self._get_comment(obj) for obj in self._get("bug/%s/comment" % self._quote(bug_id), **kw)["bugs"][bug_id]["comments"]]
     
     def get_comment(self, c_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
         c_id = str(c_id)
-        return self._get_comment(self._get("bug/comment/" + c_id, **kw)["comments"][c_id])
+        return self._get_comment(self._get("bug/comment/" + self._quote(c_id), **kw)["comments"][c_id])
     
     def search_comment_tags(self, query, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
-        return self._get("bug/comment/tags/" + query, **kw)
+        return self._get("bug/comment/tags/" + self._quote(query), **kw)
     
     def get_last_visited(self, bug_ids = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
@@ -268,19 +272,19 @@ class Bugzilla:
     def get_fields(self, id_or_name = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/field.html'
         path = "field/bug"
-        if id_or_name is not None: path += "/" + str(id_or_name)
+        if id_or_name is not None: path += "/" + self._quote(str(id_or_name))
         
         return [self._get_field(field) for field in self._get(path, **kw)["fields"]]
     
     def get_user(self, user_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
         user_id = str(user_id)
-        return [self._get_user(data) for data in self._get("user/" + user_id, **kw)["users"]][0]
+        return [self._get_user(data) for data in self._get("user/" + self._quote(user_id), **kw)["users"]][0]
     
     def get_flag_types(self, product, component = None, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#get-flag-type'
-        path = "flag_types/" + product
-        if component is not None: path += "/" + component
+        path = "flag_types/" + self._quote(product)
+        if component is not None: path += "/" + self._quote(component)
         
         data = self._get(path, **kw)
         if "bug" in data: data["bug"] = [self._get_flag_type(obj) for obj in data["bug"]]
@@ -310,7 +314,7 @@ class Bugzilla:
         # for some reason, bugzilla 5.0 does not find the resource, so this workaround has to do
         # this was the original code:
         # group_id = str(group_id)
-        # return [self._get_group(data) for data in self._get("group/" + group_id, **kw)["groups"]][0]
+        # return [self._get_group(data) for data in self._get("group/" + self._quote(group_id), **kw)["groups"]][0]
         if isinstance(group_id, str):
             return self.search_groups(names = [group_id], **kw)[0]
         else:
@@ -330,7 +334,7 @@ class Bugzilla:
             data = None
         else:
             url = "bug_user_last_visit"
-            data = bug_ids
+            data = {"ids": bug_ids}
         
         return self._post(url, data, **kw)
     
@@ -374,7 +378,7 @@ class Bugzilla:
         bug_id = str(bug_id)
         data = comment.add_json()
         data.update(kw)
-        return int(self._post("bug/%s/comment" % bug_id, data)["id"])
+        return int(self._post("bug/%s/comment" % self._quote(bug_id), data)["id"])
     
     def update_comment_tags(self, comment_id, add = [], remove = []):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
@@ -402,7 +406,7 @@ class Bugzilla:
             path = str(component.id)
             data["ids"] = component.id
         else:
-            path = product + "/" + str(component.name)
+            path = self._quote(product) + "/" + self._quote(component.name)
             data["names"] = [{"product": product, "component": component.name}]
         
         data.update(kw)
@@ -413,7 +417,7 @@ class Bugzilla:
         if product is None:
             path = str(component_id)
         else:
-            path = product + "/" + str(component_id)
+            path = self._quote(product) + "/" + self._quote(str(component_id))
         
         return self._delete("component/" + path, None)["components"][0]["id"]
     
