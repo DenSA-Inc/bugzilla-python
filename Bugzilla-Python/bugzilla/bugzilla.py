@@ -87,19 +87,19 @@ class Bugzilla:
         if "is_private" in data: data["is_private"] = bool(data["is_private"])
         if "is_obsolete" in data: data["is_obsolete"] = bool(data["is_obsolete"])
         if "is_patch" in data: data["is_patch"] = bool(data["is_patch"])
-        if "flags" in data: data["flags"] = [self._get_flag(obj) for obj in data["flags"]]
+        if "flags" in data: data["flags"] = [self._get_attachment_flag(obj) for obj in data["flags"]]
         
         return Attachment(data)
     
-    def _get_flag(self, data):
+    def _get_attachment_flag(self, data):
         if "creation_date" in data: data["creation_date"] = parse_bugzilla_datetime(data["creation_date"])
         if "modification_date" in data: data["modification_date"] = parse_bugzilla_datetime(data["modification_date"])
         
-        return Flag(data)
+        return AttachmentFlag(data)
     
     def _get_bug(self, data):
         if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
-        if "flags" in data: data["flags"] = [self._get_flag(obj) for obj in data["flags"]]
+        if "flags" in data: data["flags"] = [self._get_attachment_flag(obj) for obj in data["flags"]]
         if "is_cc_accessible" in data: data["is_cc_accessible"] = bool(data["is_cc_accessible"])
         if "is_confirmed" in data: data["is_confirmed"] = bool(data["is_confirmed"])
         if "is_open" in data: data["is_open"] = bool(data["is_open"])
@@ -276,6 +276,23 @@ class Bugzilla:
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
         user_id = str(user_id)
         return [self._get_user(data) for data in self._get("user/" + user_id, **kw)["users"]][0]
+    
+    def get_flag_types(self, product, component = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#get-flag-type'
+        path = "flag_types/" + product
+        if component is not None: path += "/" + component
+        
+        data = self._get(path, **kw)
+        if "bug" in data: data["bug"] = [self._get_flag_type(obj) for obj in data["bug"]]
+        if "attachment" in data: data["attachment"] = [self._get_flag_type(obj) for obj in data["attachment"]]
+        
+        return data
+    
+    def get_attachment_flag_types(self, product, component = None, **kw):
+        return self.get_flag_types(product, component, **kw)["attachment"]
+    
+    def get_bug_flag_types(self, product, component = None, **kw):
+        return self.get_flag_types(product, component, **kw)["bug"]
     
     # there are several possible parameters to this method
     # these are ids, names, match, limit, group_ids, groups, include_disabled
@@ -462,3 +479,25 @@ class Bugzilla:
         data["ids"] = ids
         data.update(kw)
         return [UpdateResult(data) for data in self._put("product/%i" % ids[0], data)["products"]]
+    
+    # look at the link for the additional fields that have to be/can be set.
+    # target_type is mandatory, also have a look at inclusions and exclusions
+    def add_flag_type(self, flag_type, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#create-flag-type'
+        if not flag_type.can_be_added():
+            raise BugzillaException(-1, "This FlagType does not have the required fields set")
+        data = flag_type.add_json()
+        data.update(kw)
+        return int(self._post("flag_type", data)["ids"])
+    
+    def update_flag_type(self, flag_type, ids = None, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#update-flag-type'
+        if ids is None: ids = flag_type.id
+        if isinstance(ids, int): ids = [ids]
+        
+        if not flag_type.can_be_updated():
+            raise BugzillaException(-1, "This product does not have the required fields set")
+        data = flag_type.update_json()
+        data["ids"] = ids
+        data.update(kw)
+        return [UpdateResult(data) for data in self._put("flag_type/%i" % ids[0], data)["flagtypes"]]

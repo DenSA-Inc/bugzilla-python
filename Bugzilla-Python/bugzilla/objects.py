@@ -216,6 +216,8 @@ class Component(BugzillaObject):
     def can_be_updated(self):
         return self.id != -1
 
+# This object is tricky because different api-calls return different subsets of attributes
+# If you want to find bugs, look here
 class FlagType(BugzillaObject):
     ATTRIBUTES = {
         "id": -1,
@@ -223,17 +225,39 @@ class FlagType(BugzillaObject):
         "description": "",
         "cc_list": [],
         "sort_key": 0,
-        "is_active": False,
-        "is_requestable": False,
+        "is_active": True,
+        "is_requestable": True,
         "is_requesteeble": False,
-        "is_multiplicable": False,
+        "is_multiplicable": True,
         "grant_group": None,
-        "request_group": None
+        "request_group": None,
+        "type": "",
+        "values": []
     }
     
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(FlagType.ATTRIBUTES)
+    
+    def can_be_added(self):
+        return bool(self.name and self.description)
+    
+    def add_json(self, id_only = False):
+        dct = {}
+        for field in ("name", "description", "is_active", "is_requestable", "cc_list",
+                    "is_multiplicable"):
+            dct[field] = self[field]
+        for field in ("grant_group", "request_group"):
+            if self[field]: dct[field] = self[field]
+        
+        if self.sort_key: dct["sortkey"] = self.sort_key # i blame the specs
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
+    
+    def update_json(self, id_only = False):
+        return self.add_json()
 
 class Version(BugzillaObject):
     ATTRIBUTES = {
@@ -348,7 +372,7 @@ class Attachment(BugzillaObject):
     def can_be_updated(self):
         return self.id != -1
 
-class Flag(BugzillaObject):
+class AttachmentFlag(BugzillaObject):
     ATTRIBUTES = {
         "id":                -1,
         "name":              "",
@@ -362,7 +386,7 @@ class Flag(BugzillaObject):
     
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
-        self.set_default_attributes(Flag.ATTRIBUTES)
+        self.set_default_attributes(AttachmentFlag.ATTRIBUTES)
 
 class History(BugzillaObject):
     ATTRIBUTES = {
