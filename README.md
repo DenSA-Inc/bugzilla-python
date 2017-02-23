@@ -27,9 +27,13 @@ In the end the attachment is added to a bug. Some API-calls accept more paramete
 ## Are there bugs?
 Yes. I just don't see them because they are out of my line of sight. I tested the methods (roughly) in python 3.4 with an bugzilla-5.0-installation, I expect multiple bugs once this code will be used. If you find bugs send them to me for extermination or kill them yourselves.
 
-## TODO's
+## TODO's and done's
 I plan to add more features to this code, when this will happen is unknown. These features include:
 
- * Supporting all (not deprecated) API-methods
  * A good documentation. While the link to the documentation is given for every method every method should get a complete documentation of all possible parameters.
  * Lazy-fetching objects. Some API-calls return a object with only a subsets of it attributes (e.g. only an users email). An example would be an user-object which only knows its email. If any other attribute is accessed the object loads its attributes.
+ * Find out why *TODO* is written in aggressive uppercase while *done* is written in frail lowercase
+
+**Done's:**
+
+ * Supporting all (not deprecated) API-methods

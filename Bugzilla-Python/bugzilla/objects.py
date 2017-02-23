@@ -1,5 +1,6 @@
 import base64
 from copy import deepcopy
+from .util import encode_bugzilla_date
 
 class BugzillaObject(dict):
     # Treat the object-attributes as dict-indizes for easier jsoning
@@ -127,6 +128,19 @@ class Bug(BugzillaObject):
         # yet these are the only ones that are said to be required in the documentation
         # my bugzilla-installation (version 5.0) required much more fields
         return bool(self.product and self.component and self.summary and self.version)
+    
+    def update_json(self, id_only = False):
+        dct = {}
+        for field in ("assigned_to", "is_cc_accessible", "op_sys", "platform", "priority",
+                    "qa_contact", "is_creator_accessible", "resolution", "severity", "status",
+                    "summary", "url", "version", "whiteboard"):
+            dct[field] = self[field]
+        dct["deadline"] = encode_bugzilla_date(self.deadline)
+        dct.update(self.get_custom_fields())
+        return dct
+    
+    def can_be_updated(self):
+        return self.id != -1
     
     def get_custom_fields(self):
         fields = {}
@@ -413,6 +427,7 @@ class Change(BugzillaObject):
         BugzillaObject.__init__(self, attributes)
         self.set_default_attributes(Change.ATTRIBUTES)
 
+# Note: Not many update-results have a last_change_time
 class UpdateResult(BugzillaObject):
     ATTRIBUTES = {
         "changes": [],

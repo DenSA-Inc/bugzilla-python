@@ -370,6 +370,34 @@ class Bugzilla:
         data.update(kw)
         return int(self._post("bug", data)["id"])
     
+    # since there are so many array fields that are updated via an add/remove/set-object,
+    # this method has 3 additional parameters.
+    # specifying add = {"keywords": ["key", "word"]} will result in {"keywords": {"add": ["key", "word"]}}
+    # in the final update-object. These parameters will be removed once I find a better way.
+    # Note: these 3 parameters overwrite keyword-parameters
+    # TODO: find a better way.
+    def update_bug(self, bug, ids = None, add = {}, remove = {}, set_ = {}, **kw):
+        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html#update-bug'
+        if ids is None: ids = bug.id
+        if isinstance(ids, int): ids = [ids]
+        
+        # the use of add/remove and set at the same time is not permitted
+        if (set(add.keys()) | set(remove.keys())) & set(set_.keys()):
+            raise ValueError("You can not use the same keys in _set and add/remove")
+        asr = {} # no, you find a better variable name
+        for key in (set(add.keys()) | set(remove.keys())): asr[key] = {}
+        for key in add: asr[key]["add"] = add[key]
+        for key in remove: asr[key]["remove"] = remove[key]
+        for key in set_: asr[key] = {"set": set_[key]}
+        
+        if not bug.can_be_updated():
+            raise BugzillaException(-1, "This bug does not have the required fields set")
+        data = bug.update_json()
+        data["ids"] = ids
+        data.update(kw)
+        data.update(asr)
+        return [self._get_update_result(obj) for obj in self._put("bug/%i" % ids[0], data)["bugs"]]
+    
     def add_comment(self, comment, bug_id, **kw):
         'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
         if not comment.can_be_added():
