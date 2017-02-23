@@ -83,52 +83,59 @@ class Bugzilla:
         
         return obj
     
+    def _map(self, dct, key, func):
+        if key in dct:
+            if isinstance(dct[key], list):
+                dct[key] = [func(obj) for obj in dct[key]]
+            else:
+                dct[key] = func(dct[key])
+    
     def _get_attachment(self, data):
-        if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
-        if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
-        if "data" in data: data["data"] = b64decode(data["data"])
+        self._map(data, "creation_time", parse_bugzilla_datetime)
+        self._map(data, "last_change_time", parse_bugzilla_datetime)
+        self._map(data, "data", b64decode)
+        self._map(data, "is_private", bool)
+        self._map(data, "is_obsolete", bool)
+        self._map(data, "is_patch", bool)
+        self._map(data, "flags", self._get_attachment_flag)
         if "size" in data: del data["size"]
-        if "is_private" in data: data["is_private"] = bool(data["is_private"])
-        if "is_obsolete" in data: data["is_obsolete"] = bool(data["is_obsolete"])
-        if "is_patch" in data: data["is_patch"] = bool(data["is_patch"])
-        if "flags" in data: data["flags"] = [self._get_attachment_flag(obj) for obj in data["flags"]]
         
         return Attachment(data)
     
     def _get_attachment_flag(self, data):
-        if "creation_date" in data: data["creation_date"] = parse_bugzilla_datetime(data["creation_date"])
-        if "modification_date" in data: data["modification_date"] = parse_bugzilla_datetime(data["modification_date"])
+        self._map(data, "creation_date", parse_bugzilla_datetime)
+        self._map(data, "modification_date", parse_bugzilla_datetime)
         
         return AttachmentFlag(data)
     
     def _get_bug(self, data):
-        if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
-        if "flags" in data: data["flags"] = [self._get_attachment_flag(obj) for obj in data["flags"]]
-        if "is_cc_accessible" in data: data["is_cc_accessible"] = bool(data["is_cc_accessible"])
-        if "is_confirmed" in data: data["is_confirmed"] = bool(data["is_confirmed"])
-        if "is_open" in data: data["is_open"] = bool(data["is_open"])
-        if "is_creator_accessible" in data: data["is_creator_accessible"] = bool(data["is_creator_accessible"])
-        if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
+        self._map(data, "creation_time", parse_bugzilla_datetime)
+        self._map(data, "flags", self._get_attachment_flag)
+        self._map(data, "is_cc_accessible", bool)
+        self._map(data, "is_confirmed", bool)
+        self._map(data, "is_open", bool)
+        self._map(data, "is_creator_accessible", bool)
+        self._map(data, "last_change_time", parse_bugzilla_datetime)
         
         return Bug(data)
     
     def _get_history(self, data):
-        if "when" in data: data["when"] = parse_bugzilla_datetime(data["when"])
-        if "changes" in data: data["changes"] = [Change(obj) for obj in data["changes"]]
+        self._map(data, "when", parse_bugzilla_datetime)
+        self._map(data, "changes", Change)
         
         return History(data)
     
     def _get_product(self, data):
-        if "components" in data: data["components"] = [self._get_component(obj) for obj in data["components"]]
-        if "versions" in data: data["versions"] = [self._get_version(obj) for obj in data["versions"]]
-        if "milestones" in data: data["milestones"] = [self._get_milestone(obj) for obj in data["milestones"]]
+        self._map(data, "components", self._get_component)
+        self._map(data, "versions", self._get_version)
+        self._map(data, "milestones", self._get_milestone)
         
         return Product(data)
     
     def _get_component(self, data):
         if "flag_types" in data:
-            data["flag_types"]["bug"] = [self._get_flag_type(obj) for obj in data["flag_types"]["bug"]]
-            data["flag_types"]["attachment"] = [self._get_flag_type(obj) for obj in data["flag_types"]["attachment"]]
+            self._map(data["flag_types"], "bug", self._get_flag_type)
+            self._map(data["flag_types"], "attachment", self._get_flag_type)
         
         return Component(data)
     
@@ -145,30 +152,30 @@ class Bugzilla:
         return Classification(data)
     
     def _get_update_result(self, data):
-        if "last_change_time" in data: data["last_change_time"] = parse_bugzilla_datetime(data["last_change_time"])
+        self._map(data, "last_change_time", parse_bugzilla_datetime)
         
         return UpdateResult(data)
     
     def _get_comment(self, data):
-        if "time" in data: data["time"] = parse_bugzilla_datetime(data["time"])
-        if "creation_time" in data: data["creation_time"] = parse_bugzilla_datetime(data["creation_time"])
+        self._map(data, "time", parse_bugzilla_datetime)
+        self._map(data, "creation_time", parse_bugzilla_datetime)
         
         return Comment(data)
     
     def _get_field(self, data):
-        if "values" in data: data["values"] = [BugFieldValue(obj) for obj in data["values"]]
+        self._map(data, "values", BugFieldValue)
         
         return BugField(data)
     
     def _get_user(self, data):
-        if "groups" in data: data["groups"] = [self._get_group(obj) for obj in data["groups"]]
-        if "saved_searches" in data: data["saved_searches"] = [Search(obj) for obj in data["saved_searches"]]
-        if "saved_reports" in data: data["saved_reports"] = [Search(obj) for obj in data["saved_reports"]]
+        self._map(data, "groups", self._get_group)
+        self._map(data, "saved_searches", Search)
+        self._map(data, "saved_reports", Search)
         
         return User(data)
     
     def _get_group(self, data):
-        if "membership" in data: data["membership"] = [self._get_user(obj) for obj in data["membership"]]
+        self._map(data, "membership", self._get_user)
         
         return Group(data)
     
