@@ -26,9 +26,13 @@ class Bugzilla:
         
         self.url = url
         self.api_key = api_key
-        # i have to lookup the right charset, until then utf-8 should suffice
-        # UPDATE: appearently the charset utf-8 is hardcoded into the api, so it's cool
         self.charset = "utf-8"
+    
+    def get_api_key(self):
+        return self.api_key
+    
+    def set_api_key(self, key):
+        self.api_key = key
     
     # a little helper function to encode url-parameters
     def _quote(self, string):
@@ -180,116 +184,245 @@ class Bugzilla:
         return Group(data)
     
     def get_version(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
+        """
+        Gets the bugzilla-version, usually in the format X.X or X.X.X
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bugzilla.html#version
+        """
         return self._get("version")["version"]
     
     def get_extensions(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
+        """
+        Gets all the installed extensions. Returns a dict in which the keys describe
+        the extension name, the values are also a dict. The value has one key, "version",
+        containing the extension-version.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bugzilla.html#extensions
+        """
         return self._get("extensions")["extensions"]
     
     def get_time(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
+        """
+        Returns the local times for the bugzilla web- and the database-server. The return
+        value is a dict, in which the key "db_time" refers to the database-time and the
+        key "web_time" refers to the webserver-time. Also, older versions of bugzilla
+        might return more fields. For that refer to the documentation-link provided.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bugzilla.html#time
+        """
         data = self._get("time")
-        data["db_time"] = parse_bugzilla_datetime(data["db_time"])
-        data["web_time"] = parse_bugzilla_datetime(data["web_time"])
+        self._map(data, "db_time", parse_bugzilla_datetime)
+        self._map(data, "web_time", parse_bugzilla_datetime)
+        self._map(data, "web_time_utc", parse_bugzilla_datetime)
         
         return data
     
     def get_parameters(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
+        """
+        Returns a dict containing the configuration-parameters of the bugzilla-instance.
+        If no api-key is specified only a few parameters will be returned. For a
+        complete list of parameters see the link.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bugzilla.html#parameters
+        """
         return self._get("parameters", **kw)["parameters"]
     
-    def get_last_audit_time(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bugzilla.html'
+    def get_last_audit_time(self, class_ = None):
+        """
+        Returns the last audit time for a given class. The class can be "Bugzilla::Component"
+        or something similar. Appearently, if no class is given, "Bugzilla::Product" will be
+        assumed.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bugzilla.html#last-audit-time
+        """
+        kw = {}
+        if class_ is not None: kw["class"] = class_
         return parse_bugzilla_datetime(self._get("last_audit_time", **kw)["last_audit_time"])
     
     def get_attachment(self, attachment_id, **kw):
-        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
-        attachment_id = str(attachment_id)
-        return self._get_attachment(self._get("bug/attachment/" + attachment_id, **kw)["attachments"][attachment_id])
+        """
+        Returns the attachment with the given id. The id has to be an int.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html#get-attachment
+        """
+        return self._get_attachment(self._get("bug/attachment/%i" % attachment_id, **kw)["attachments"][str(attachment_id)])
     
     def get_attachments_by_bug(self, bug, **kw):
-        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
+        """
+        Returns the attachment for a given bug. The parameter bug can be a bug-object,
+        a bug-id or a bug-alias.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html#get-attachment
+        """
         bug_id = str(bug.id if isinstance(bug, Bug) else bug)
         return [self._get_attachment(data) for data in self._get("bug/%s/attachment" % self._quote(bug_id), **kw)["bugs"][bug_id]]
     
     def get_bug(self, bug_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        """
+        Returns the bug for the given id. The parameter bug_id can be a numeric id or
+        a bug alias.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bug.html#get-bug
+        """
         bug_id = str(bug_id)
         return self._get_bug(self._get("bug/" + self._quote(bug_id), **kw)["bugs"][0])
     
     def search_bugs(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        """
+        Search bugzilla for bugs. Several keyword-parameters can be passed to specify your search.
+        Because of my lazyness you have to click the link below.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bug.html#search-bugs
+        """
         return [self._get_bug(data) for data in self._get("bug", **kw)["bugs"]]
     
     def get_bug_history(self, bug_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug.html'
+        """
+        Return the history for a specific bug. The bug_id can be a numeric id or a bug-alias.
+        The optional keyword-parameter new_since can be passed to only get the history after
+        a specific date (must be an encoded date, NO DATETIME)
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bug.html#bug-history
+        """
         bug_id = str(bug_id)
         return [self._get_history(history) for history in self._get("bug/%s/history" % self._quote(bug_id), **kw)["bugs"][0]["history"]]
     
     def get_selectable_product_ids(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        """
+        Return a list of selectable product's ids.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#list-products
+        """
         return sorted(map(int, self._get("product_selectable")["ids"]))
     
     def get_accessible_product_ids(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        """
+        Returns a list of accessible product's ids
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#list-products
+        """
         return sorted(map(int, self._get("product_accessible")["ids"]))
     
     def get_enterable_product_ids(self):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
+        """
+        Returns a list of enterable product's ids
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#list-products
+        """
         return sorted(map(int, self._get("product_enterable")["ids"]))
     
-    def get_product(self, product_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html'
-        product_id = str(product_id)
-        return self._get_product(self._get("product/" + self._quote(product_id), **kw)["products"][0])
+    def get_product(self, product_id = None, **kw):
+        """
+        Get products by id or search paramters. The product_id can be a product-id or a
+        product-name. Optional keyword-parameters are:
+        ids: A list of ids to get the products for
+        names: A list of product-names to get the corresponding products
+        type: A product type, can be "accessible", "selectable" or "enterable".
+            It can be a list containing multible of these values.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#get-product
+        """
+        path = "product"
+        if product_id is not None: path += "/" + self._quote(product_id)
+        return self._get_product(self._get(path, **kw)["products"][0])
     
     def get_classification(self, c_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/classification.html'
+        """
+        Get a classification by its numeric id or name. The parameter c_id can be both.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/classification.html#get-classification
+        """
         c_id = str(c_id)
         return [self._get_classification(obj) for obj in self._get("classification/" + self._quote(c_id), **kw)["classifications"]]
     
     def get_comments_by_bug(self, bug_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
-        bug_id = str(bug_id)
+        """
+        Get the list of comments for a given bug. The parameter bug_id can be a bug-object, a bug-id
+        or a bug-alias. The optional parameter new_since can be passed to filter for comments
+        after this datetime. The parameter has to be an encoded datetime.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/comment.html#get-comments
+        """
+        bug_id = str(bug.id if isinstance(bug, Bug) else bug)
         return [self._get_comment(obj) for obj in self._get("bug/%s/comment" % self._quote(bug_id), **kw)["bugs"][bug_id]["comments"]]
     
     def get_comment(self, c_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
-        c_id = str(c_id)
-        return self._get_comment(self._get("bug/comment/" + self._quote(c_id), **kw)["comments"][c_id])
+        """
+        Gets the comment with the given id. The id has to be an int. This method has two
+        optional keyword-parameters:
+        comment_ids: A list of comment_ids to get additional comments
+        ids: A list of bug-ids to get additional comments for
+        new_since: Filter and only return comments after a specific datetime. The value for this
+            parameter has to be an encoded datetime.
+        Note that comment_ids overwrites new_since, comments with ids from comment_ids will be
+        returned even if they are older than new_since.
+        If only c_id is given a comment is returned, otherwise a list of comments.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/comment.html#get-comments
+        """
+        data = self._get("bug/comment/%i" % c_id, **kw)
+        comments = [self._get_comment(data["comments"][key]) for key in data["comments"]]
+        for bug_id in data["bugs"]:
+            comments.extend(self._get_comment(obj) for obj in data["bugs"][bug_id]["comments"])
+        
+        if not kw:
+            return comments[0] # only the id was given
+        else:
+            return comments
     
     def search_comment_tags(self, query, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        """
+        Search for tags which contain the given substring. The keyword-parameter limit
+        specifies the maximum number of results. It defaults to 10.
+        A list of strings is returned.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/comment.html#search-comment-tags
+        """
         return self._get("bug/comment/tags/" + self._quote(query), **kw)
     
     def get_last_visited(self, bug_ids = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
-        if not self.api_key:
-            raise BugzillaException(-1, "You must be logged in to use that method")
-        
+        """
+        Get the last-visited timestamp for one or multiple bugs. The parameter bug_ids
+        can be a bug-id, a list of bug-ids or not set if you want the last 20 visited bugs.
+        The return value is a list of dicts, each containing the keys "id" (the bug id)
+        and "last_visit_ts" (the last-visit-timestamp)
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bug-user-last-visit.html#get-last-visited
+        """
         if bug_ids is None or isinstance(bug_ids, int):
-            url = "bug_user_last_visit/" + ("" if bug_ids is None else str(bug_ids))
+            url = "bug_user_last_visit" + ("" if bug_ids is None else "/" str(bug_ids))
         else:
-            url = "bug_user_last_visit/" + str(bug_ids[0])
+            url = "bug_user_last_visit/%i" % bug_ids[0]
             kw["ids"] = bug_ids[1:]
         
-        return self._get(url, **kw)
+        data = self._get(url, **kw)
+        for obj in data: self._map(data, "last_visit_ts", parse_bugzilla_datetime)
+        return data
     
     def get_fields(self, id_or_name = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/field.html'
+        """
+        Get all fields or a specific one. To specify a field, pass its id or name
+        as parameter.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/field.html#fields
+        """
         path = "field/bug"
         if id_or_name is not None: path += "/" + self._quote(str(id_or_name))
         
         return [self._get_field(field) for field in self._get(path, **kw)["fields"]]
     
-    def get_user(self, user_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
-        user_id = str(user_id)
-        return [self._get_user(data) for data in self._get("user/" + self._quote(user_id), **kw)["users"]][0]
+    def get_user(self, user_id = None, **kw):
+        """
+        Get one or multiple users. If user_id is given (which can be a numeric id or an
+        user name) only one user will be searched for and a single user will be returned.
+        By passing one or more keyword-parameters multiple users will be searched for
+        and the return value will be a list.
+        Valid keyword-parameters are:
+        ids: A list of user-ids. You have to be logged in to use this.
+        names: A list of user-names.
+        match: A list of strings. Bugzilla will search for users whose login-name or
+            real-name contains one of these strings. You have to be logged in to use that.
+        limit: A limit of users matched by the match-parameter. Be vary that bugzilla
+            itself has its own limit and will use it if your limit is higher.
+        group_ids: A list of group-ids that users can be in.
+        groups: Same as group_ids.
+        include_disabled: include disabled users, even if the do not match the match-parameter
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#get-user
+        """
+        path = "user" if user_id is None else "user/" + self._quote(str(user_id))
+        users = [self._get_user(data) for data in self._get(path, **kw)["users"]]
+        if not kw: # only an id or name was given
+            return users[0]
+        else:
+            return users
     
     def get_flag_types(self, product, component = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#get-flag-type'
+        """
+        Get flag-types for a product and optionally a products component.
+        As for now, both parameters have to be strings, the products and components
+        name respectively.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/flagtype.html#get-flag-type
+        """
         path = "flag_types/" + self._quote(product)
         if component is not None: path += "/" + self._quote(component)
         
@@ -300,9 +433,17 @@ class Bugzilla:
         return data
     
     def get_attachment_flag_types(self, product, component = None, **kw):
+        """
+        Get flag-types as in get_flag_types, but limit the return value to the
+        attachment-flag-types. All parameters are the same as in get_flag_types.
+        """
         return self.get_flag_types(product, component, **kw)["attachment"]
     
     def get_bug_flag_types(self, product, component = None, **kw):
+        """
+        Get flag-types as in get_flag_types, but limit the return value to the
+        bug-flag-types. All parameters are the same as in get_flag_types.
+        """
         return self.get_flag_types(product, component, **kw)["bug"]
     
     # there are several possible parameters to this method
