@@ -371,7 +371,7 @@ class Bugzilla:
         https://bugzilla.readthedocs.io/en/5.0/api/core/v1/bug-user-last-visit.html#get-last-visited
         """
         if bug_ids is None or isinstance(bug_ids, int):
-            url = "bug_user_last_visit" + ("" if bug_ids is None else "/" str(bug_ids))
+            url = "bug_user_last_visit" + ("" if bug_ids is None else "/" + str(bug_ids))
         else:
             url = "bug_user_last_visit/%i" % bug_ids[0]
             kw["ids"] = bug_ids[1:]
@@ -393,28 +393,12 @@ class Bugzilla:
     
     def get_user(self, user_id = None, **kw):
         """
-        Get one or multiple users. If user_id is given (which can be a numeric id or an
-        user name) only one user will be searched for and a single user will be returned.
-        By passing one or more keyword-parameters multiple users will be searched for
-        and the return value will be a list.
-        Valid keyword-parameters are:
-        ids: A list of user-ids. You have to be logged in to use this.
-        names: A list of user-names.
-        match: A list of strings. Bugzilla will search for users whose login-name or
-            real-name contains one of these strings. You have to be logged in to use that.
-        limit: A limit of users matched by the match-parameter. Be vary that bugzilla
-            itself has its own limit and will use it if your limit is higher.
-        group_ids: A list of group-ids that users can be in.
-        groups: Same as group_ids.
-        include_disabled: include disabled users, even if the do not match the match-parameter
+        Get one user by id or name. The parameter user_id can be the user name or
+        its id.
         https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#get-user
         """
-        path = "user" if user_id is None else "user/" + self._quote(str(user_id))
-        users = [self._get_user(data) for data in self._get(path, **kw)["users"]]
-        if not kw: # only an id or name was given
-            return users[0]
-        else:
-            return users
+        user_id = str(user_id)
+        return self._get_user(self._get("user/" + self._quote(user_id), **kw)["users"][0])
     
     def get_flag_types(self, product, component = None, **kw):
         """
@@ -446,18 +430,39 @@ class Bugzilla:
         """
         return self.get_flag_types(product, component, **kw)["bug"]
     
-    # there are several possible parameters to this method
-    # these are ids, names, match, limit, group_ids, groups, include_disabled
     def search_users(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#get-user'
+        """
+        Search for one or more users by one or more search-parameters. The result
+        will be a list of users.
+        Valid keyword-parameters are:
+        ids: A list of user-ids. You have to be logged in to use this.
+        names: A list of user-names.
+        match: A list of strings. Bugzilla will search for users whose login-name or
+            real-name contains one of these strings. You have to be logged in to use that.
+        limit: A limit of users matched by the match-parameter. Be vary that bugzilla
+            itself has its own limit and will use it if your limit is higher.
+        group_ids: A list of group-ids that users can be in.
+        groups: Same as group_ids.
+        include_disabled: include disabled users, even if the do not match the match-parameter
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#get-user
+        """
         return [self._get_user(data) for data in self._get("user", **kw)["users"]]
     
     def whoami(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#who-am-i'
+        """
+        Returns the user you are currently logged in. Therefore you have to set
+        the api-key since this library does not support other methods of authentication.
+        https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#who-am-i
+        """
         return User(self._get("whoami", **kw))
     
     def get_group(self, group_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
+        """
+        Get the group specified by the given id. The parameter group_id can be a numeric id or
+        a group-name. Since this method currently uses a workaround every group-id passed to
+        this method has to be an int. Passing "42" will search for the name "42", not the id.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/group.html#get-group
+        """
         # TODO: find the solution
         # for some reason, bugzilla 5.0 does not find the resource, so this workaround has to do
         # this was the original code:
@@ -469,14 +474,25 @@ class Bugzilla:
             return self.search_groups(ids = [group_id], **kw)[0]
     
     def search_groups(self, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#get-group'
+        """
+        Search for one or more groups by one or more search-parameters. The result will be
+        a list of groups.
+        Valid keyword-parameters are:
+        ids: A list of group-ids
+        names: A list of group-names
+        membership: If set to 1, then a list of members is returned for each group
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/group.html#get-group
+        """
         return [self._get_group(data) for data in self._get("group", **kw)["groups"]]
     
     def update_last_visited(self, bug_ids, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html'
-        if not self.api_key:
-            raise BugzillaException(-1, "You must be logged in to use that method")
-        
+        """
+        Update the last-visited time for the given bug-ids. You have to be logged in to use
+        this method. bug_ids can be a single bug_id or a list of ids. The return value is a
+        list of dicts, each having two keys. The key "id" contains the bug-id updated and
+        "last_visit_ts" contains the new last-visited timestamp.
+        https://bugzilla.readthedocs.io/en/latest/api/core/v1/bug-user-last-visit.html#update-last-visited
+        """
         if isinstance(bug_ids, int):
             url = "bug_user_last_visit/" + str(bug_ids)
             data = None
@@ -484,10 +500,22 @@ class Bugzilla:
             url = "bug_user_last_visit"
             data = {"ids": bug_ids}
         
-        return self._post(url, data, **kw)
+        data = self._post(url, data, **kw)
+        for obj in data: self._map(obj, "last_visit_ts", parse_bugzilla_datetime)
+        
+        return data
     
     def add_attachment(self, attachment, ids, comment = ""):
-        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
+        """
+        Add the given attachment to one or more bug, given its id/ids. The attachment has to
+        have all required fields set to valid values. These fields are data, file_name, summary
+        and content_type. If these are not set bugzilla will not even send a request.
+        The ids-parameter has to be a bug-id or a list of those. Optionally, a comment can
+        be passed to add a comment along with the attachment.
+        If successful, an attachment is added for each given bug-id and a list of newly created
+        attachment-ids is returned.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html#create-attachment
+        """
         if isinstance(ids, int): ids = [ids]
         
         if not attachment.can_be_added():
@@ -498,7 +526,14 @@ class Bugzilla:
         return [int(i) for i in self._post("bug/%i/attachment" % ids[0], data)["ids"]]
     
     def update_attachment(self, attachment, ids = None, comment = ""):
-        'https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html'
+        """
+        Update one or more attachments. You can specify a list of attachment-ids whose respective
+        attachment shall be updated with this attachment's fields. If none are given, only the
+        given attachment will be updated. Optionally you can specify a comment to add to the
+        attachment(s).
+        The return-value will be a list of UpdateResult's, describing the changes for each attachment.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/attachment.html#update-attachment
+        """
         if ids is None: ids = attachment.id
         if isinstance(ids, int): ids = [ids]
         
@@ -547,7 +582,13 @@ class Bugzilla:
         return [self._get_update_result(obj) for obj in self._put("bug/%i" % ids[0], data)["bugs"]]
     
     def add_comment(self, comment, bug_id, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        """
+        Add a comment to a bug. The comment's text-field has to be set and mustn't
+        consist of whitespace only. You can also pass the work_time-keyword-parameter
+        to add that many "hours worked" on the bug. That parameter must be a float.
+        On success the newly created comment's id is returned.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/comment.html#create-comments
+        """
         if not comment.can_be_added():
             raise BugzillaException(-1, "This comment does not have the required fields set")
         
@@ -557,20 +598,29 @@ class Bugzilla:
         return int(self._post("bug/%s/comment" % self._quote(bug_id), data)["id"])
     
     def update_comment_tags(self, comment_id, add = [], remove = []):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/comment.html'
+        """
+        Update a comments tags by passing the comments id and a list of tags to add or to
+        remove. Also, try to add and remove the same tag at the same time, I'm curious.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/comment.html#update-comment-tags
+        """
         comment_id = str(comment_id)
         data = {"comment_id": comment_id, "add": add, "remove": remove}
         return self._put("bug/comment/%s/tags" % comment_id, data)
     
-    # there are several parameters you can pass to this method
-    # these are product, default_cc and is_open
-    # the product-parameter is mandatory
-    def add_component(self, component, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#create-component'
+    def add_component(self, component, product, **kw):
+        """
+        Add a component to a product. The component must have the required fields set, which
+        are name, description and default_assignee. The product must be a product-object or
+        a string. This method has to optional keyword-parameters, default_cc, a list of login-
+        names, and is_open, 0 or 1. On success, the id of the newly created component is returned.
+        """
         if not component.can_be_added():
             raise BugzillaException(-1, "This component does not have the required fields set")
+        if not isinstance(product, str):
+            product = product.name
         
         data = component.add_json()
+        data["product"] = product
         data.update(kw)
         return int(self._post("component", data)["id"])
     
@@ -589,7 +639,12 @@ class Bugzilla:
         return self._put("component/" + path, data)["components"]
     
     def delete_component(self, component_id, product = None):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#delete-component'
+        """
+        Delete a component. The component is either specified by its id or by its and its product
+        name. Therefore this method can be called with an int or two strings. The return-value
+        is the id of the deleted component.
+        https://bugzilla.readthedocs.io/en/latest/api/core/v1/component.html#delete-component
+        """
         if product is None:
             path = str(component_id)
         else:
@@ -598,7 +653,13 @@ class Bugzilla:
         return self._delete("component/" + path, None)["components"][0]["id"]
     
     def add_group(self, group, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#create-group'
+        """
+        Add a group to bugzilla. That group must have its fields name and description set.
+        Also, the keyword-parameter icon_url can be passed, specifying an URL pointing to an
+        icon that will be used for this group. The return-value will be the newly created
+        group-id.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/group.html#create-group
+        """
         if not group.can_be_added():
             raise BugzillaException(-1, "This group does not have the required fields set")
         
@@ -607,7 +668,13 @@ class Bugzilla:
         return int(self._post("group", data)["id"])
     
     def update_group(self, group, ids = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/group.html#update-group'
+        """
+        Update one or several groups. By default, only the given group will be updated. If
+        you pass a list of group-ids in the ids-parameter then these groups will be updated.
+        Also, this method accepts the same keyword-parameters as add_group.
+        The return value will be a list of UpdateResult's containing all changes.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/group.html#update-group
+        """
         if ids is None: ids = group.id
         if isinstance(ids, int): ids = [ids]
         
@@ -619,7 +686,13 @@ class Bugzilla:
         return [UpdateResult(data) for data in self._put("group/%i" % ids[0], data)["groups"]]
     
     def add_user(self, user, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#create-user'
+        """
+        Add a user to bugzilla. The user must have its email-field and its full_name set.
+        You also have to pass the password-keyword-parameter. See the note on the password
+        parameter for that.
+        The return-value will be the id of the newly created user.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#create-user
+        """
         if not user.can_be_added():
             raise BugzillaException(-1, "This user does not have the required fields set")
         data = user.add_json()
@@ -629,7 +702,15 @@ class Bugzilla:
     # TODO: until now, the group-objects for this call have to be crafted yourself.
     # find some way to make this more elegant
     def update_user(self, user, ids = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/user.html#update-user'
+        """
+        Update one or more users. By default only the given user will be updated. If you pass
+        a list of user-ids then the respective users will all be updated. You can also pass
+        a list of login-names in the names-keyword-parameter to update these users too. This
+        method has two more keyword-parameters, groups and bless_groups. For their description
+        and data-format see the documentation.
+        The return-value will be a list of UpdateResult's containing all the changes.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#update-user
+        """
         if ids is None: ids = user.id
         if isinstance(ids, int): ids = [ids]
         
@@ -641,7 +722,13 @@ class Bugzilla:
         return [UpdateResult(data) for data in self._put("user/%i" % ids[0], data)["users"]]
     
     def add_product(self, product, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html#create-product'
+        """
+        Add a product to bugzilla. The product must have the fields name, description and
+        version set. There are two optional keyword-parameters, is_open and create_series.
+        For their use, see the documentation.
+        The return-value will be the id of the newly created product.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#create-product
+        """
         if not product.can_be_added():
             raise BugzillaException(-1, "This product does not have the required fields set")
         data = product.add_json()
@@ -649,7 +736,14 @@ class Bugzilla:
         return int(self._post("product", data)["ids"])
     
     def update_product(self, product, ids = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/product.html#update-product'
+        """
+        Update one or more products. If ids is not given, only the given product will be updated.
+        Otherwise all products identified by their ids will be updated. This method has two
+        keyword-parameters, is_open and create_series. If specified, these fields will be updated
+        too.
+        The return-value will be a list of UpdateResult's describing the changes.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/product.html#create-product
+        """
         if ids is None: ids = product.id
         if isinstance(ids, int): ids = [ids]
         
@@ -660,18 +754,31 @@ class Bugzilla:
         data.update(kw)
         return [UpdateResult(data) for data in self._put("product/%i" % ids[0], data)["products"]]
     
-    # look at the link for the additional fields that have to be/can be set.
-    # target_type is mandatory, also have a look at inclusions and exclusions
-    def add_flag_type(self, flag_type, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#create-flag-type'
+    def add_flag_type(self, flag_type, target_type, **kw):
+        """
+        Add a flag-type to bugzilla. The flag-type must have the fields name and description set.
+        You have to set a target_type, specifying which object the flag-type will be for. Valid
+        values are "bug" and "attachment". This method also has two keyword-parameters,
+        inclusion and exclusion. For their description and usage, read the documentation.
+        The return value will be the id of the newly created flag-type.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/flagtype.html#create-flag-type
+        """
         if not flag_type.can_be_added():
             raise BugzillaException(-1, "This FlagType does not have the required fields set")
         data = flag_type.add_json()
         data.update(kw)
+        data["target_type"] = target_type
         return int(self._post("flag_type", data)["ids"])
     
     def update_flag_type(self, flag_type, ids = None, **kw):
-        'https://bugzilla.readthedocs.io/en/latest/api/core/v1/flagtype.html#update-flag-type'
+        """
+        Update one or several flag-type. By default only the given flag-type will be updated.
+        If you specify ids then the flag-types with these id's will be updated. This method
+        has two optional keyword-parameters, inclusions and exclusions. For their description
+        and data format, please see the documentation.
+        The return-value will be a list of UpdateResult's describing the changes.
+        https://bugzilla.readthedocs.io/en/5.0/api/core/v1/flagtype.html#update-flag-type
+        """
         if ids is None: ids = flag_type.id
         if isinstance(ids, int): ids = [ids]
         
