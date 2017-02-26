@@ -504,7 +504,7 @@ class BugFieldValue(BugzillaObject):
     
     def __init__(self, attributes = {}):
         BugzillaObject.__init__(self, attributes)
-        self.set_default_attributes(BugField.ATTRIBUTES)
+        self.set_default_attributes(BugFieldValue.ATTRIBUTES)
 
 class User(BugzillaObject):
     ATTRIBUTES = {
