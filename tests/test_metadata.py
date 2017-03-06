@@ -17,6 +17,3 @@ class TestMetadata(unittest.TestCase):
     
     def test_time(self):
         zilla.get_time()
-
-if __name__ == "__main__":
-    unittest.main()
